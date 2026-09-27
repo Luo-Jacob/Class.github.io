@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>账号登录</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft Yahei", sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .login-box {
+            background: #fff;
+            width: 380px;
+            padding: 35px 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        .title {
+            text-align: center;
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .input-item {
+            margin-bottom: 20px;
+        }
+        input {
+            width: 100%;
+            height: 44px;
+            padding: 0 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 15px;
+            outline: none;
+            transition: border 0.2s;
+        }
+        input:focus {
+            border-color: #409eff;
+        }
+        .code-row {
+            display: flex;
+            gap: 10px;
+        }
+        #emailCode {
+            flex: 1;
+        }
+        #sendCodeBtn {
+            width: 120px;
+            background: #409eff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        #sendCodeBtn:disabled {
+            background: #a0cfff;
+            cursor: not-allowed;
+        }
+        #loginBtn {
+            width: 100%;
+            height: 46px;
+            background: #2b7de9;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        #loginBtn:active {
+            background: #2268c5;
+        }
+        .tip {
+            margin-top: 20px;
+            font-size: 13px;
+            color: #999;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="login-box">
+    <h2 class="title">邮箱登录 / 注册</h2>
+    <div class="input-item">
+        <input type="email" id="userEmail" placeholder="请输入您的邮箱地址">
+    </div>
+    <div class="input-item code-row">
+        <input type="text" id="emailCode" placeholder="6位邮箱验证码">
+        <button id="sendCodeBtn">获取验证码</button>
+    </div>
+    <button id="loginBtn">立即登录</button>
+    <div class="tip">未注册邮箱将自动创建账号</div>
+</div>
+
+<script>
+    // 获取DOM元素
+    const emailInput = document.getElementById('userEmail');
+    const codeInput = document.getElementById('emailCode');
+    const sendBtn = document.getElementById('sendCodeBtn');
+    const loginBtn = document.getElementById('loginBtn');
+
+    // 倒计时变量
+    let countDown = 0;
+
+    // 发送验证码
+    sendBtn.onclick = async () => {
+        const email = emailInput.value.trim();
+        // 简单邮箱格式校验
+        const reg = /^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$/;
+        if (!reg.test(email)) {
+            alert("请输入合法邮箱！");
+            return;
+        }
+        if (countDown > 0) return;
+
+        // 请求后端发送邮件接口 send_email.php
+        const res = await fetch("./send_email.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: "email=" + encodeURIComponent(email)
+        });
+        const text = await res.text();
+        if (text === "success") {
+            alert("验证码已发送，请查收邮件（垃圾箱留意）");
+            // 60秒倒计时
+            countDown = 60;
+            sendBtn.disabled = true;
+            const timer = setInterval(() => {
+                countDown--;
+                sendBtn.innerText = `${countDown}s后重发`;
+                if (countDown <= 0) {
+                    clearInterval(timer);
+                    sendBtn.disabled = false;
+                    sendBtn.innerText = "获取验证码";
+                }
+            }, 1000);
+        } else {
+            alert("发送失败：" + text);
+        }
+    };
+
+    // 登录校验
+    loginBtn.onclick = async () => {
+        const email = emailInput.value.trim();
+        const code = codeInput.value.trim();
+        if (!email) {
+            alert("请填写邮箱");
+            return;
+        }
+        if (!code || code.length !== 6) {
+            alert("请填写6位验证码");
+            return;
+        }
+        // 请求登录校验接口 email_login.php
+        const res = await fetch("./email_login.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: "email=" + encodeURIComponent(email) + "&code=" + code
+        });
+        const result = await res.text();
+        if (result === "login_success") {
+            alert("登录成功！");
+            // 登录成功跳转首页，自行修改跳转地址
+            window.location.href = "/";
+        } else {
+            alert(result);
+        }
+    };
+</script>
+</body>
+</html>
